@@ -14,7 +14,11 @@ from pkg_resources import DistributionNotFound, get_distribution, parse_version
 from urllib.parse import urlencode, quote
 
 import httpx
-from kazoo.client import KazooClient, KazooState
+
+try:
+    from kazoo.client import KazooClient, KazooState
+except ImportError:
+    KazooClient = KazooState = None
 
 try:
     # Prefer simplejson, if installed.
@@ -309,9 +313,14 @@ class Solr(object):
         if bytes_body is not None:
             bytes_body = force_bytes(body)
         try:
-            resp = await requests_method(
-                url, data=bytes_body, headers=headers, files=files,
-                timeout=self.timeout, auth=self.auth)
+            if method == 'get':
+                resp = await requests_method(
+                    url, params=bytes_body, headers=headers,
+                    timeout=self.timeout, auth=self.auth)
+            else:
+                resp = await requests_method(
+                    url, data=bytes_body, headers=headers, files=files,
+                    timeout=self.timeout, auth=self.auth)
         except httpx.exceptions.TimeoutException as err:
             error_message = "Connection to server '%s' timed out: %s"
             self.log.error(error_message, url, err, exc_info=True)
@@ -367,7 +376,7 @@ class Solr(object):
 
         if len(params_encoded) < 1024:
             # Typical case.
-            path = f'{handler}/?f{params_encoded}'
+            path = f'{handler}/?{params_encoded}'
             return await self._send_request('get', path)
         else:
             # Handles very long queries by submitting as a POST.
@@ -951,8 +960,8 @@ class Solr(object):
         return await self._update(msg, commit=commit, waitFlush=waitFlush,
                                   waitSearcher=waitSearcher, handler=handler)
 
-    def extract(self, file_obj, extractOnly=True, handler='update/extract',     # NOQA
-                **kwargs):
+    async def extract(self, file_obj, extractOnly=True, handler='update/extract',     # NOQA
+                      **kwargs):
         """
         POSTs a file to the Solr ExtractingRequestHandler so rich content can
         be processed using Apache Tika. See the Solr wiki for details:

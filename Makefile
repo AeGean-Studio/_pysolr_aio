@@ -13,7 +13,9 @@ install-deps:
 	@$(WITH_ENV) pip3 install -r requirements-dev.txt
 
 clean:
-	@rm -f dist/*
+	@rm -rf dist/*
+	@rm -rf build/*
+	@rm -rf pysolr_aio.egg-info/*
 	@find . -name '*.pyc' -or -name '*.pyo' -or -name '__pycache__' -type f -delete
 	@find . -type d -empty -delete
 
